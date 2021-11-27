@@ -6,17 +6,47 @@ import { Avatar, IconButton } from "@mui/material";
 import SearchOutlined from "@mui/icons-material/SearchOutlined";
 import MoreVert from "@mui/icons-material/MoreVert";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
+import { useParams } from "react-router-dom";
+import db from "./firebase";
+import firebase from "firebase";
+import { useStateValue } from "./StateProvider";
 function Chat() {
-  const [seed, setSeed] = useState("");
   const [input, setInput] = useState("");
+  const { roomId } = useParams();
+  const [seed, setSeed] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [roomName, setRoomName] = useState("");
+  const [{ user }, dispatch] = useStateValue();
+
+  useEffect(() => {
+    if (roomId) {
+      db.collection("rooms")
+        .doc(roomId)
+        .onSnapshot((snapshot) => setRoomName(snapshot.data().name));
+
+      db.collection("rooms")
+        .doc(roomId)
+        .collection("messages")
+        .orderBy("timestamp", "asc")
+        .onSnapshot((snapshot) =>
+          setMessages(snapshot.docs.map((doc) => doc.data()))
+        );
+    }
+  }, [roomId]);
+
   const sendMessage = (e) => {
     e.preventDefault(); //stop from refresing
     console.log("you typed", input);
+    db.collection("rooms").doc(roomId).collection("messages").add({
+      message: input,
+      name: user.displayName,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    });
     setInput("");
   };
   useEffect(() => {
     setSeed(Math.floor(Math.random() * 5000));
-  }, []);
+  }, [roomId]);
   return (
     <div className="chat">
       <div className="chat_header">
@@ -24,8 +54,13 @@ function Chat() {
           src={`https://avatars.dicebear.com/api/adventurer/${seed}.svg`}
         />
         <div className="chat_headerInfo">
-          <h3>Room Name</h3>
-          <p>Last seen at...</p>
+          <h3>{roomName}</h3>
+          <p>
+            Last seen
+            {new Date(
+              messages[messages.length - 1]?.timestamp?.toDate()
+            ).toUTCString()}
+          </p>
         </div>
 
         <div className="chat_headerRight">
@@ -41,11 +76,19 @@ function Chat() {
         </div>
       </div>
       <div className="chat_body">
-        <p className={`chat_message ${true && "chat_reciever"}`}>
-          <span className="chat_name">Muthu</span>
-          Hey Guys
-          <span className="chat_timeStamp">3.05pm</span>
-        </p>
+        {messages.map((message) => (
+          <p
+            className={`chat_message ${
+              message.name === user.displayName && "chat_reciever"
+            }`}
+          >
+            <span className="chat_name">{message.name}</span>
+            {message.message}
+            <span className="chat_timeStamp">
+              {new Date(message.timestamp?.toDate()).toUTCString()}
+            </span>
+          </p>
+        ))}
       </div>
       <div className="chat_footer">
         <EmojiEmotionsIcon />

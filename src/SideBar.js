@@ -8,23 +8,29 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { IconButton } from "@mui/material";
 import SidebarChat from "./SidebarChat";
 import db from "./firebase";
+import { useStateValue } from "./StateProvider";
 
 function SideBar() {
   const [rooms, setRooms] = useState([]);
-  // useEffect(() => {
-  //   db.collection("rooms").onSnapshot((snapshot) =>
-  //     setRooms(
-  //       snapshot.docs.map((doc) => ({
-  //         id: doc.id,
-  //         data: doc.data(),
-  //       }))
-  //     )
-  //   );
-  // }, []);
+  const [{ user }, dispatch] = useStateValue();
+  useEffect(() => {
+    const unsubscribe = db.collection("rooms").onSnapshot((snapshot) =>
+      setRooms(
+        snapshot.docs.map((doc) => ({
+          id: doc.id,
+          data: doc.data(),
+        }))
+      )
+    );
+    //detache the db after usage
+    return () => {
+      unsubscribe();
+    };
+  }, []);
   return (
     <div className="sideBar">
       <div className="sideBar_header">
-        <Avatar />
+        <Avatar src={user?.photoURL} />
         <div className="sideBar_headerRight">
           <IconButton>
             <DonutLargeIcon />
@@ -45,9 +51,9 @@ function SideBar() {
       </div>
       <div className="sideBar_chats">
         <SidebarChat addNewChat />
-        {/* {rooms.map((room) => (
+        {rooms.map((room) => (
           <SidebarChat key={room.id} id={room.id} name={room.data.name} />
-        ))} */}
+        ))}
       </div>
     </div>
   );
